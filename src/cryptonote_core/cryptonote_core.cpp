@@ -713,12 +713,13 @@ namespace cryptonote
   //-----------------------------------------------------------------------------------------------
   std::pair<uint64_t, uint64_t> core::get_coinbase_tx_sum(const uint64_t start_offset, const size_t count)
   {
-    std::list<block> blocks;
     uint64_t emission_amount = 0;
     uint64_t total_fee_amount = 0;
-    this->get_blocks(start_offset, count, blocks);
-    for(auto& b: blocks)
+    if (count)
     {
+      const uint64_t end = start_offset + count - 1;
+      m_blockchain_storage.for_blocks_range(start_offset, end,
+        [this, &emission_amount, &total_fee_amount](uint64_t, const crypto::hash& hash, const block& b){
       std::list<transaction> txs;
       std::list<crypto::hash> missed_txs;
       uint64_t coinbase_amount = get_outs_money_amount(b.miner_tx);
@@ -731,6 +732,8 @@ namespace cryptonote
       
       emission_amount += coinbase_amount - tx_fee_amount;
       total_fee_amount += tx_fee_amount;
+      return true;
+      });
     }
 
     return std::pair<uint64_t, uint64_t>(emission_amount, total_fee_amount);
@@ -1043,6 +1046,12 @@ namespace cryptonote
   bool core::get_pool_transaction_hashes(std::vector<crypto::hash>& txs) const
   {
     m_mempool.get_transaction_hashes(txs);
+    return true;
+  }
+  //-----------------------------------------------------------------------------------------------
+  bool core::get_pool_transaction_stats(struct txpool_stats& stats) const
+  {
+    m_mempool.get_transaction_stats(stats);
     return true;
   }
   //-----------------------------------------------------------------------------------------------

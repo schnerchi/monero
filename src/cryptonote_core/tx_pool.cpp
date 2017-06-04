@@ -107,6 +107,9 @@ namespace cryptonote
   //---------------------------------------------------------------------------------
   bool tx_memory_pool::add_tx(transaction &tx, /*const crypto::hash& tx_prefix_hash,*/ const crypto::hash &id, size_t blob_size, tx_verification_context& tvc, bool kept_by_block, bool relayed, bool do_not_relay, uint8_t version)
   {
+    // this should already be called with that lock, but let's make it explicit for clarity
+    CRITICAL_REGION_LOCAL(m_transactions_lock);
+
     PERF_TIMER(add_tx);
     if (tx.version == 0)
     {
@@ -224,6 +227,7 @@ namespace cryptonote
         meta.do_not_relay = do_not_relay;
         try
         {
+          CRITICAL_REGION_LOCAL1(m_blockchain);
           LockedTXN lock(m_blockchain);
           m_blockchain.add_txpool_tx(tx, meta);
           if (!insert_key_images(tx, kept_by_block))
@@ -260,6 +264,7 @@ namespace cryptonote
 
       try
       {
+        CRITICAL_REGION_LOCAL1(m_blockchain);
         LockedTXN lock(m_blockchain);
         m_blockchain.remove_txpool_tx(get_transaction_hash(tx));
         m_blockchain.add_txpool_tx(tx, meta);
@@ -542,6 +547,31 @@ namespace cryptonote
     CRITICAL_REGION_LOCAL1(m_blockchain);
     m_blockchain.for_all_txpool_txes([&txs](const crypto::hash &txid, const txpool_tx_meta_t &meta, const cryptonote::blobdata *bd){
       txs.push_back(txid);
+      return true;
+    });
+  }
+  //------------------------------------------------------------------
+  void tx_memory_pool::get_transaction_stats(struct txpool_stats& stats) const
+  {
+    CRITICAL_REGION_LOCAL(m_transactions_lock);
+    CRITICAL_REGION_LOCAL1(m_blockchain);
+    const uint64_t now = time(NULL);
+    stats.txs_total = m_blockchain.get_txpool_tx_count();
+    m_blockchain.for_all_txpool_txes([&stats, now](const crypto::hash &txid, const txpool_tx_meta_t &meta, const cryptonote::blobdata *bd){
+      stats.bytes_total += meta.blob_size;
+      if (!stats.bytes_min || meta.blob_size < stats.bytes_min)
+        stats.bytes_min = meta.blob_size;
+      if (meta.blob_size > stats.bytes_max)
+        stats.bytes_max = meta.blob_size;
+      if (!meta.relayed)
+        stats.num_not_relayed++;
+      stats.fee_total += meta.fee;
+      if (!stats.oldest || meta.receive_time < stats.oldest)
+        stats.oldest = meta.receive_time;
+      if (meta.receive_time < now - 600)
+        stats.num_10m++;
+      if (meta.last_failed_height)
+        stats.num_failing++;
       return true;
     });
   }
