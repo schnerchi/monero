@@ -39,7 +39,7 @@ rdln::suspend_readline::~suspend_readline()
 }
 
 rdln::readline_buffer::readline_buffer()
-: std::stringbuf()
+: std::stringbuf(), m_cout_buf(NULL)
 {
   current = this;
 }
@@ -62,7 +62,7 @@ void rdln::readline_buffer::stop()
   remove_line_handler();
 }
 
-void rdln::readline_buffer::get_line(std::string& line)
+void rdln::readline_buffer::get_line(std::string& line) const
 {
   std::unique_lock<std::mutex> lock(line_mutex);
   have_line.wait(lock);
@@ -122,7 +122,7 @@ static int process_input()
   struct timeval t;
   
   t.tv_sec = 0;
-  t.tv_usec = 0;
+  t.tv_usec = 1000;
   
   FD_ZERO(&fds);
   FD_SET(STDIN_FILENO, &fds);

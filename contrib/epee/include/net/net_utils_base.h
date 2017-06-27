@@ -128,7 +128,7 @@ namespace net_utils
 				case ipv4_network_address::ID:
 					if (!is_store)
 						const_cast<network_address&>(this_ref).reset(new ipv4_network_address(0, 0));
-					KV_SERIALIZE(as<ipv4_network_address>());
+					KV_SERIALIZE(template as<ipv4_network_address>());
 					break;
 				default: MERROR("Unsupported network address type: " << type); return false;
 			}
@@ -156,6 +156,7 @@ namespace net_utils
     const network_address m_remote_address;
     const bool     m_is_income;
     const time_t   m_started;
+    bool     m_in_timedsync;
     time_t   m_last_recv;
     time_t   m_last_send;
     uint64_t m_recv_cnt;
@@ -171,6 +172,7 @@ namespace net_utils
                                             m_remote_address(remote_address),
                                             m_is_income(is_income),
                                             m_started(time(NULL)),
+                                            m_in_timedsync(false),
                                             m_last_recv(last_recv),
                                             m_last_send(last_send),
                                             m_recv_cnt(recv_cnt),
@@ -183,6 +185,7 @@ namespace net_utils
                                m_remote_address(new ipv4_network_address(0,0)),
                                m_is_income(false),
                                m_started(time(NULL)),
+                               m_in_timedsync(false),
                                m_last_recv(0),
                                m_last_send(0),
                                m_recv_cnt(0),
