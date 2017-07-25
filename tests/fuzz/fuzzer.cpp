@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -25,57 +25,72 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
-#pragma once
+#include <boost/program_options.hpp>
+#include "include_base_utils.h"
+#include "common/command_line.h"
+#include "fuzzer.h"
 
-#include "net/net_utils_base.h"
-
-namespace boost
+#if (!defined(__clang__) || (__clang__ < 5))
+static int __AFL_LOOP(int)
 {
-  namespace serialization
+  static int once = 0;
+  if (once)
+    return 0;
+  once = 1;
+  return 1;
+}
+#endif
+
+using namespace epee;
+using namespace boost::program_options;
+
+int run_fuzzer(int argc, const char **argv, Fuzzer &fuzzer)
+{
+  TRY_ENTRY();
+  string_tools::set_module_name_and_folder(argv[0]);
+
+  //set up logging options
+  mlog_configure(mlog_get_default_log_path("fuzztests.log"), true);
+  mlog_set_log("*:FATAL,logging:none");
+
+  options_description desc_options("Allowed options");
+  command_line::add_arg(desc_options, command_line::arg_help);
+
+  variables_map vm;
+  bool r = command_line::handle_error_helper(desc_options, [&]()
   {
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a, epee::net_utils::network_address& na, const ver_type ver)
-    {
-      uint8_t type;
-      if (typename Archive::is_saving())
-        type = na.get_type_id();
-      a & type;
-      switch (type)
-      {
-        case epee::net_utils::ipv4_network_address::ID:
-          if (!typename Archive::is_saving())
-            na.reset(new epee::net_utils::ipv4_network_address(0, 0));
-          a & na.as<epee::net_utils::ipv4_network_address>();
-          break;
-        default:
-          throw std::runtime_error("Unsupported network address type");
-      }
-    }
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a, epee::net_utils::ipv4_network_address& na, const ver_type ver)
-    {
-      a & na.m_ip;
-      a & na.m_port;
-    }
+    store(parse_command_line(argc, argv, desc_options), vm);
+    notify(vm);
+    return true;
+  });
+  if (!r)
+    return 1;
 
-
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a,  nodetool::peerlist_entry& pl, const ver_type ver)
-    {
-      a & pl.adr;
-      a & pl.id;
-      a & pl.last_seen;
-    }
-
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a, nodetool::anchor_peerlist_entry& pl, const ver_type ver)
-    {
-      a & pl.adr;
-      a & pl.id;
-      a & pl.first_seen;
-    }
+  if (command_line::get_arg(vm, command_line::arg_help))
+  {
+    std::cout << desc_options << std::endl;
+    return 0;
   }
+
+  if (argc < 2)
+  {
+    std::cout << desc_options << std::endl;
+    return 1;
+  }
+
+  int ret = fuzzer.init();
+  if (ret)
+    return ret;
+
+  const std::string filename = argv[1];
+  while (__AFL_LOOP(1000))
+  {
+    ret = fuzzer.run(filename);
+    if (ret)
+      return ret;
+  }
+
+  CATCH_ENTRY_L0("fuzzer_main", 1);
+  return 0;
 }

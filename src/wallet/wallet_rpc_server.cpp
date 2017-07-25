@@ -422,7 +422,7 @@ namespace tools
     std::vector<cryptonote::tx_destination_entry> dsts;
     std::vector<uint8_t> extra;
 
-    LOG_PRINT_L3("on_transfer_split starts");
+    LOG_PRINT_L3("on_transfer starts");
     if (!m_wallet) return not_open(er);
     if (m_wallet->restricted())
     {
@@ -509,6 +509,7 @@ namespace tools
     try
     {
       uint64_t mixin = req.mixin;
+      uint64_t ptx_amount;
       if (mixin < 2 && m_wallet->use_fork_rules(2, 10)) {
         LOG_PRINT_L1("Requested mixin " << req.mixin << " too low for hard fork 2, using 2");
         mixin = 2;
@@ -518,9 +519,9 @@ namespace tools
       ptx_vector = m_wallet->create_transactions_2(dsts, mixin, req.unlock_time, req.priority, extra, m_trusted_daemon);
       LOG_PRINT_L2("on_transfer_split called create_transactions_2");
 
-      LOG_PRINT_L2("on_transfer_split calling commit_txyy");
+      LOG_PRINT_L2("on_transfer_split calling commit_tx");
       m_wallet->commit_tx(ptx_vector);
-      LOG_PRINT_L2("on_transfer_split called commit_txyy");
+      LOG_PRINT_L2("on_transfer_split called commit_tx");
 
       // populate response with tx hashes
       for (auto & ptx : ptx_vector)
@@ -530,6 +531,12 @@ namespace tools
         {
           res.tx_key_list.push_back(epee::string_tools::pod_to_hex(ptx.tx_key));
         }
+        // Compute amount leaving wallet in tx. By convention dests does not include change outputs
+        ptx_amount = 0;
+        for(auto & dt: ptx.dests)
+          ptx_amount += dt.amount;
+        res.amount_list.push_back(ptx_amount);
+
         res.fee_list.push_back(ptx.fee);
       }
 

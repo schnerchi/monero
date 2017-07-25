@@ -91,10 +91,10 @@ static const char *get_default_categories(int level)
   switch (level)
   {
     case 0:
-      categories = "*:WARNING,net:FATAL,net.p2p:FATAL,net.cn:FATAL,global:INFO,verify:FATAL,stacktrace:INFO,logging:INFO";
+      categories = "*:WARNING,net:FATAL,net.p2p:FATAL,net.cn:FATAL,global:INFO,verify:FATAL,stacktrace:INFO,logging:INFO,msgwriter:INFO";
       break;
     case 1:
-      categories = "*:WARNING,global:INFO,stacktrace:INFO,logging:INFO";
+      categories = "*:WARNING,global:INFO,stacktrace:INFO,logging:INFO,msgwriter:INFO";
       break;
     case 2:
       categories = "*:DEBUG";
@@ -139,7 +139,7 @@ void mlog_configure(const std::string &filename_base, bool console)
   {
     monero_log = get_default_categories(0);
   }
-  mlog_set_categories(monero_log);
+  mlog_set_log(monero_log);
 }
 
 void mlog_set_categories(const char *categories)

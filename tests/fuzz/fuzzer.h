@@ -1,4 +1,4 @@
-// Copyright (c) 2014-2017, The Monero Project
+// Copyright (c) 2017, The Monero Project
 // 
 // All rights reserved.
 // 
@@ -25,57 +25,14 @@
 // INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
 // STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF
 // THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// Parts of this file are originally copyright (c) 2012-2013 The Cryptonote developers
 
-#pragma once
+#include <string>
 
-#include "net/net_utils_base.h"
-
-namespace boost
+class Fuzzer
 {
-  namespace serialization
-  {
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a, epee::net_utils::network_address& na, const ver_type ver)
-    {
-      uint8_t type;
-      if (typename Archive::is_saving())
-        type = na.get_type_id();
-      a & type;
-      switch (type)
-      {
-        case epee::net_utils::ipv4_network_address::ID:
-          if (!typename Archive::is_saving())
-            na.reset(new epee::net_utils::ipv4_network_address(0, 0));
-          a & na.as<epee::net_utils::ipv4_network_address>();
-          break;
-        default:
-          throw std::runtime_error("Unsupported network address type");
-      }
-    }
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a, epee::net_utils::ipv4_network_address& na, const ver_type ver)
-    {
-      a & na.m_ip;
-      a & na.m_port;
-    }
+public:
+  virtual int init() { return 0; }
+  virtual int run(const std::string &filename) = 0;
+};
 
-
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a,  nodetool::peerlist_entry& pl, const ver_type ver)
-    {
-      a & pl.adr;
-      a & pl.id;
-      a & pl.last_seen;
-    }
-
-    template <class Archive, class ver_type>
-    inline void serialize(Archive &a, nodetool::anchor_peerlist_entry& pl, const ver_type ver)
-    {
-      a & pl.adr;
-      a & pl.id;
-      a & pl.first_seen;
-    }
-  }
-}
+int run_fuzzer(int argc, const char **argv, Fuzzer &fuzzer);
